@@ -1,3 +1,4 @@
+
 export async function fetchVideoAsFile(videoUrl: string, defaultFileName: string = 'video_from_url'): Promise<File> {
   try {
     // Validate URL structure (basic check)
@@ -74,48 +75,76 @@ export async function fetchImageAsFile(imageUrl: string, defaultFileName: string
   try {
     new URL(imageUrl);
   } catch (e) {
-    throw new Error('Invalid URL format.');
+    throw new Error('Invalid URL format. Please enter a valid image URL.');
   }
 
+  // Attempt 1: Direct fetch
+  try {
+    console.log(`Attempting direct fetch for: ${imageUrl}`);
+    const directResponse = await fetch(imageUrl);
+    if (directResponse.ok && directResponse.type !== 'opaque') {
+      const blob = await directResponse.blob();
+      if (blob.type && blob.type.startsWith('image/')) {
+        console.log(`Direct fetch successful for: ${imageUrl}`);
+        let filename = defaultFileName;
+        try {
+          const path = new URL(imageUrl).pathname;
+          const lastSegment = path.substring(path.lastIndexOf('/') + 1);
+          if (lastSegment) filename = decodeURIComponent(lastSegment);
+        } catch { /* use default */ }
+        if (!filename.includes('.')) {
+            const extension = blob.type.split('/')[1] || 'png';
+            filename = `${filename}.${extension}`;
+        }
+        return new File([blob], filename, { type: blob.type });
+      } else {
+        console.warn(`Direct fetch for ${imageUrl} succeeded but returned non-image MIME type: ${blob.type}. Falling back to proxy.`);
+      }
+    } else {
+      console.warn(`Direct fetch for ${imageUrl} failed (status: ${directResponse.status}, type: ${directResponse.type}). Falling back to proxy.`);
+    }
+  } catch (directFetchError: any) {
+    console.warn(`Direct fetch for ${imageUrl} failed with error: ${directFetchError.message}. Falling back to proxy.`);
+  }
+
+  // Attempt 2: Fetch via CORS proxy
+  console.log(`Falling back to CORS proxy for: ${imageUrl}`);
   const corsProxy = 'https://odd-dream-5e6e.anthorytsang.workers.dev/?url=';
   const proxyUrl = corsProxy + encodeURIComponent(imageUrl);
+  let proxyResponse;
 
-  let response;
   try {
-    response = await fetch(proxyUrl);
+    proxyResponse = await fetch(proxyUrl);
   } catch (networkError: any) {
     console.error('Network error fetching image via proxy:', networkError);
     throw new Error(
-      `Network error while trying to fetch image through proxy. The proxy or your connection might be down.`
+      `Network error trying to fetch image through proxy. Proxy or connection might be down. (URL: ${imageUrl})`
     );
   }
 
-  if (!response.ok) {
+  if (!proxyResponse.ok) {
     throw new Error(
-      `Failed to fetch image through proxy (status: ${response.status}). The image URL might be invalid, or the server blocked the proxy.`
+      `Failed to fetch image through proxy (proxy status: ${proxyResponse.status}). Original URL: ${imageUrl}. The image URL might be invalid, the server blocked the proxy, or the proxy itself encountered an error.`
     );
   }
 
-  if (response.type === "opaque") {
+  if (proxyResponse.type === "opaque") {
     console.error('Received opaque response from proxy for image.');
     throw new Error(
-        'Failed to load image: Received an opaque response from the proxy, which means the image data cannot be accessed. This might be a proxy issue or a restriction from the image server.'
+        `Failed to load image: Received an opaque response from the proxy for ${imageUrl}. Image data cannot be accessed. This might be a proxy issue or a restriction from the image server.`
     );
   }
 
-  const blob = await response.blob();
+  const blob = await proxyResponse.blob();
 
   if (!blob.type || !blob.type.startsWith('image/')) {
-     // Try to infer type if missing, but generally this is bad.
-     console.warn(`Unexpected or missing MIME type from proxy for image: ${blob.type}. The file might not be a valid image or the proxy response is corrupted.`);
-     // If a common image extension is in the URL, we might try to use that, but it's risky.
-     // For now, we'll throw an error if it's not clearly an image, to avoid processing bad data.
-     if (!/\.(jpe?g|png|gif|webp|bmp|tiff?)$/i.test(imageUrl) && !blob.type.startsWith('image/')) {
+     console.warn(`Unexpected or missing MIME type from proxy for image: ${blob.type} (URL: ${imageUrl}). The file might not be a valid image or the proxy response is corrupted.`);
+     // Heuristic: if URL has common image extension, proceed with caution, otherwise fail.
+     if (!/\.(jpe?g|png|gif|webp|bmp|tiff?)$/i.test(imageUrl) && (!blob.type || !blob.type.startsWith('image/'))) {
         throw new Error(
-            `The fetched file does not appear to be an image (MIME type: ${blob.type || 'unknown'}). Please check the URL.`
+            `The fetched file (from proxy for ${imageUrl}) does not appear to be an image (MIME type: ${blob.type || 'unknown'}). Please check the URL.`
         );
      }
-     // If it has a common extension, we might proceed with caution.
   }
   
   let filename = defaultFileName;
@@ -129,14 +158,14 @@ export async function fetchImageAsFile(imageUrl: string, defaultFileName: string
     console.warn("Could not derive filename from original image URL, using default.");
   }
 
-  // Ensure filename has an extension
-  const defaultExtension = blob.type ? (blob.type.split('/')[1] || 'png') : 'png';
+  const defaultExtension = (blob.type && blob.type.startsWith('image/')) ? (blob.type.split('/')[1] || 'png') : 'png';
   const extensionRegex = /\.[0-9a-z]+$/i;
   if (!extensionRegex.test(filename)) {
       filename = `${filename}.${defaultExtension}`;
   }
   
-  const fileType = blob.type || `image/${defaultExtension}`;
+  const fileType = (blob.type && blob.type.startsWith('image/')) ? blob.type : `image/${defaultExtension}`;
 
+  console.log(`Image fetch via proxy successful for: ${imageUrl}`);
   return new File([blob], filename, { type: fileType });
 }
