@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import FileUploader from '../components/FileUploader';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -105,7 +106,6 @@ const ImageEditor: React.FC = () => {
   
   const drawImageToCanvas = useCallback(() => {
     if (!imageRef.current || !canvasRef.current || !imageRef.current.complete || imageRef.current.naturalWidth === 0) {
-      // console.log("drawImageToCanvas: Prerequisites not met", imageRef.current, canvasRef.current, imageRef.current?.complete, imageRef.current?.naturalWidth);
       return;
     }
   
@@ -120,7 +120,6 @@ const ImageEditor: React.FC = () => {
   
     const { naturalWidth: iw, naturalHeight: ih } = img;
   
-    // Calculate dimensions for rotated image
     const rad = rotation * Math.PI / 180;
     const absCos = Math.abs(Math.cos(rad));
     const absSin = Math.abs(Math.sin(rad));
@@ -133,11 +132,7 @@ const ImageEditor: React.FC = () => {
     ctx.rotate(rad);
     ctx.drawImage(img, -iw / 2, -ih / 2, iw, ih);
     
-    // Reset transform for next draw or other operations
-    ctx.setTransform(1, 0, 0, 1, 0, 0); // Resets to identity matrix
-    // Note: filter is reset per draw call by some browsers, but explicitly clearing is safer if needed elsewhere
-    // ctx.filter = 'none'; // If you want to ensure filter doesn't persist for other drawings on this context
-
+    ctx.setTransform(1, 0, 0, 1, 0, 0); 
   }, [rotation, activeFilter]);
 
 
@@ -148,18 +143,27 @@ const ImageEditor: React.FC = () => {
     const handleLoad = () => {
       setOriginalImageDimensions({width: img.naturalWidth, height: img.naturalHeight });
       drawImageToCanvas();
-      if (isCroppingActive && !cropRect) { // Initialize cropRect if cropping is active on new image
-          const canvas = canvasRef.current;
-          if(canvas){
-            const initialWidth = Math.min(img.naturalWidth, canvas.clientWidth) * 0.8;
-            const initialHeight = Math.min(img.naturalHeight, canvas.clientHeight) * 0.8;
-            setCropRect({
-                x: (canvas.clientWidth - initialWidth) / 2,
-                y: (canvas.clientHeight - initialHeight) / 2,
-                width: initialWidth,
-                height: initialHeight,
-            });
+      if (isCroppingActive && !cropRect && canvasRef.current) { 
+          const canvasEl = canvasRef.current;
+          const { clientWidth: dispWidth, clientHeight: dispHeight } = canvasEl;
+          const imgAspectRatio = img.naturalWidth / img.naturalHeight;
+          
+          let rectWidth = dispWidth * 0.7;
+          let rectHeight = rectWidth / imgAspectRatio;
+
+          if (rectHeight > dispHeight * 0.7) {
+              rectHeight = dispHeight * 0.7;
+              rectWidth = rectHeight * imgAspectRatio;
           }
+          rectWidth = Math.max(MIN_CROP_SIZE, rectWidth);
+          rectHeight = Math.max(MIN_CROP_SIZE, rectHeight);
+
+          setCropRect({ // Initialize relative to cropOverlayRef
+              x: canvasEl.offsetLeft + (dispWidth - rectWidth) / 2,
+              y: canvasEl.offsetTop + (dispHeight - rectHeight) / 2,
+              width: rectWidth,
+              height: rectHeight,
+          });
       }
     };
 
@@ -172,12 +176,10 @@ const ImageEditor: React.FC = () => {
     if (img.src !== imageSrc) {
       img.src = imageSrc;
     } else if (img.complete && img.naturalWidth > 0) {
-      // If src is the same but image is already loaded (e.g. from cache, or for filter/rotation change)
       handleLoad();
     }
   }, [imageSrc, drawImageToCanvas, isCroppingActive, cropRect]);
 
-  // Redraw canvas when rotation or filter changes
   useEffect(() => {
     drawImageToCanvas();
   }, [rotation, activeFilter, drawImageToCanvas]);
@@ -192,7 +194,7 @@ const ImageEditor: React.FC = () => {
     setError(null);
 
     try {
-      const canvas = canvasRef.current; // This canvas already has the final rotated/filtered image
+      const canvas = canvasRef.current; 
       const mimeType = `image/${outputFormat}`;
       let qualityArg = outputFormat === 'jpeg' || outputFormat === 'webp' ? jpegQuality : undefined;
 
@@ -245,21 +247,19 @@ const ImageEditor: React.FC = () => {
         if (ctx) {
             ctx.clearRect(0,0, canvas.width, canvas.height);
         }
-        // Reset canvas size to avoid showing large empty canvas
         canvas.width = 300; 
         canvas.height = 150;
     }
   };
 
-  // --- Cropping Logic ---
   const toggleCropMode = () => {
     setIsCroppingActive(prev => {
       const newCropState = !prev;
-      if (newCropState && canvasRef.current && originalImageDimensions) {
-        // Initialize cropRect to center of the displayed canvas, respecting image aspect ratio
+      if (newCropState && canvasRef.current && imageRef.current && imageRef.current.complete) {
         const canvasEl = canvasRef.current;
+        const img = imageRef.current;
         const { clientWidth: dispWidth, clientHeight: dispHeight } = canvasEl;
-        const imgAspectRatio = originalImageDimensions.width / originalImageDimensions.height;
+        const imgAspectRatio = img.naturalWidth / img.naturalHeight;
         
         let rectWidth = dispWidth * 0.7;
         let rectHeight = rectWidth / imgAspectRatio;
@@ -272,13 +272,11 @@ const ImageEditor: React.FC = () => {
         rectHeight = Math.max(MIN_CROP_SIZE, rectHeight);
 
         setCropRect({
-          x: (dispWidth - rectWidth) / 2,
-          y: (dispHeight - rectHeight) / 2,
+          x: canvasEl.offsetLeft + (dispWidth - rectWidth) / 2,
+          y: canvasEl.offsetTop + (dispHeight - rectHeight) / 2,
           width: rectWidth,
           height: rectHeight,
         });
-      } else if (!newCropState) {
-        // setCropRect(null); // Optionally clear rect when exiting crop mode
       }
       return newCropState;
     });
@@ -288,10 +286,9 @@ const ImageEditor: React.FC = () => {
     if (!cropRect || !canvasRef.current || !imageRef.current || !originalImageDimensions) return;
   
     setIsLoading(true);
-    const sourceCanvas = canvasRef.current; // This canvas has the rotated/filtered image
-    const img = imageRef.current; // Original image data source (un-rotated, un-filtered)
+    const sourceCanvas = canvasRef.current; 
+    const img = imageRef.current; 
   
-    // Create a new temporary canvas to draw the cropped section from the source image
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
     if (!tempCtx) {
@@ -300,58 +297,43 @@ const ImageEditor: React.FC = () => {
       return;
     }
   
-    // Determine the actual crop region on the original image considering rotation.
-    // The cropRect is relative to the display canvas. We need to map this back to the
-    // original image's coordinate system, factoring in the rotation and current display scale.
+    const canvasEl = sourceCanvas;
+    const cropRectOnCanvasX = cropRect.x - canvasEl.offsetLeft;
+    const cropRectOnCanvasY = cropRect.y - canvasEl.offsetTop;
     
-    const displayCanvasWidth = sourceCanvas.width;
-    const displayCanvasHeight = sourceCanvas.height;
+    const scaleX = canvasEl.width / canvasEl.clientWidth;
+    const scaleY = canvasEl.height / canvasEl.clientHeight;
 
-    // Scale factor between original image and what's on sourceCanvas (due to rotation changing canvas dimensions)
-    // The cropRect coordinates (x,y,width,height) are relative to the *displayed* canvas on screen (clientWidth/Height)
-    // but the sourceCanvas (canvasRef.current) *content* dimensions are what we draw from.
-    
-    const { clientWidth: canvasViewWidth, clientHeight: canvasViewHeight } = sourceCanvas;
-
-    const scaleX = displayCanvasWidth / canvasViewWidth;
-    const scaleY = displayCanvasHeight / canvasViewHeight;
-
-    // Crop coordinates on the sourceCanvas (which holds the rotated/filtered image)
-    const sx = cropRect.x * scaleX;
-    const sy = cropRect.y * scaleY;
+    const sx = cropRectOnCanvasX * scaleX;
+    const sy = cropRectOnCanvasY * scaleY;
     const sWidth = cropRect.width * scaleX;
     const sHeight = cropRect.height * scaleY;
     
     tempCanvas.width = sWidth;
     tempCanvas.height = sHeight;
 
-    // Draw the selected portion from the already transformed (rotated, filtered) canvas
     tempCtx.drawImage(
       sourceCanvas,
-      sx, sy, sWidth, sHeight,      // Source rectangle from current canvas
-      0, 0, sWidth, sHeight         // Destination rectangle on tempCanvas
+      sx, sy, sWidth, sHeight,      
+      0, 0, sWidth, sHeight         
     );
   
-    // Update imageSrc with the cropped image data
     const croppedDataUrl = tempCanvas.toDataURL(imageFile?.type || 'image/png');
     setImageSrc(croppedDataUrl);
     
-    // The new "original" dimensions are the crop dimensions
     setOriginalImageDimensions({ width: Math.round(sWidth), height: Math.round(sHeight) });
   
-    // Reset transformations as they are now baked into the image
     setRotation(0);
     setActiveFilter('none');
     
     setIsCroppingActive(false);
-    // setCropRect(null); // cropRect will re-init if crop mode is entered again
     setIsLoading(false);
   
   }, [cropRect, originalImageDimensions, imageFile?.type]);
 
 
   const getCursorForHandle = (handle: string | undefined) => {
-    if (!handle) return 'move'; // For dragging the whole box
+    if (!handle) return 'move'; 
     switch (handle) {
       case 'nw': case 'se': return 'nwse-resize';
       case 'ne': case 'sw': return 'nesw-resize';
@@ -363,25 +345,31 @@ const ImageEditor: React.FC = () => {
 
   const getHandleUnderCursor = (e: React.MouseEvent<HTMLDivElement>): string | null => {
     if (!cropRect || !cropOverlayRef.current) return null;
-    const { x, y, width, height } = cropRect;
+    
+    // cropRect x,y,width,height are relative to cropOverlayRef
+    const { x: cropX, y: cropY, width: cropWidth, height: cropHeight } = cropRect;
     const overlay = cropOverlayRef.current;
-    const rect = overlay.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const rect = overlay.getBoundingClientRect(); // Viewport-relative rect of the overlay div
+    const mouseXInOverlay = e.clientX - rect.left; // mouseX relative to the overlay div
+    const mouseYInOverlay = e.clientY - rect.top; // mouseY relative to the overlay div
 
-    const handles: { name: string; x: number; y: number }[] = [
-        { name: 'nw', x: x, y: y }, { name: 'n', x: x + width / 2, y: y }, { name: 'ne', x: x + width, y: y },
-        { name: 'w', x: x, y: y + height / 2 }, { name: 'e', x: x + width, y: y + height / 2 },
-        { name: 'sw', x: x, y: y + height }, { name: 's', x: x + width / 2, y: y + height }, { name: 'se', x: x + width, y: y + height },
+    const handles: { name: string; hx: number; hy: number }[] = [
+        { name: 'nw', hx: cropX, hy: cropY }, 
+        { name: 'n', hx: cropX + cropWidth / 2, hy: cropY }, 
+        { name: 'ne', hx: cropX + cropWidth, hy: cropY },
+        { name: 'w', hx: cropX, hy: cropY + cropHeight / 2 }, 
+        { name: 'e', hx: cropX + cropWidth, hy: cropY + cropHeight / 2 },
+        { name: 'sw', hx: cropX, hy: cropY + cropHeight }, 
+        { name: 's', hx: cropX + cropWidth / 2, hy: cropY + cropHeight }, 
+        { name: 'se', hx: cropX + cropWidth, hy: cropY + cropHeight },
     ];
 
     for (const handle of handles) {
-        if (Math.abs(mouseX - handle.x) < HANDLE_SIZE && Math.abs(mouseY - handle.y) < HANDLE_SIZE) {
+        if (Math.abs(mouseXInOverlay - handle.hx) < HANDLE_SIZE && Math.abs(mouseYInOverlay - handle.hy) < HANDLE_SIZE) {
             return handle.name;
         }
     }
-    // Check if inside the crop box (for dragging)
-    if (mouseX > x && mouseX < x + width && mouseY > y && mouseY < y + height) {
+    if (mouseXInOverlay > cropX && mouseXInOverlay < cropX + cropWidth && mouseYInOverlay > cropY && mouseYInOverlay < cropY + cropHeight) {
         return 'drag';
     }
     return null;
@@ -390,14 +378,14 @@ const ImageEditor: React.FC = () => {
 
   const handleCropMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isCroppingActive || !cropRect || !cropOverlayRef.current) return;
-    e.preventDefault();
+    e.preventDefault(); // Prevent text selection or other default actions
     const handle = getHandleUnderCursor(e);
     if (!handle) return;
 
     const overlay = cropOverlayRef.current;
     const rect = overlay.getBoundingClientRect();
-    const startX = e.clientX - rect.left;
-    const startY = e.clientY - rect.top;
+    const startX = e.clientX - rect.left; // startX relative to overlay
+    const startY = e.clientY - rect.top; // startY relative to overlay
 
     if (handle === 'drag') {
         setCropInteraction({ isDragging: true, startX, startY, startRect: { ...cropRect } });
@@ -412,9 +400,9 @@ const ImageEditor: React.FC = () => {
     
     e.preventDefault();
     const overlay = cropOverlayRef.current;
-    const parentRect = overlay.getBoundingClientRect();
-    const mouseX = e.clientX - parentRect.left;
-    const mouseY = e.clientY - parentRect.top;
+    const parentRect = overlay.getBoundingClientRect(); // This is the viewport-relative rect of the overlay
+    const mouseX = e.clientX - parentRect.left; // mouseX relative to overlay
+    const mouseY = e.clientY - parentRect.top; // mouseY relative to overlay
 
     const dx = mouseX - (cropInteraction.startX ?? 0);
     const dy = mouseY - (cropInteraction.startY ?? 0);
@@ -427,25 +415,25 @@ const ImageEditor: React.FC = () => {
         const handle = cropInteraction.resizeHandle;
         if (handle.includes('e')) width = Math.max(MIN_CROP_SIZE, width + dx);
         if (handle.includes('w')) {
-            width = Math.max(MIN_CROP_SIZE, width - dx);
-            x += dx;
+            const newWidth = Math.max(MIN_CROP_SIZE, width - dx);
+            x += (width - newWidth); // Adjust x when resizing from left
+            width = newWidth;
         }
         if (handle.includes('s')) height = Math.max(MIN_CROP_SIZE, height + dy);
         if (handle.includes('n')) {
-            height = Math.max(MIN_CROP_SIZE, height - dy);
-            y += dy;
+            const newHeight = Math.max(MIN_CROP_SIZE, height - dy);
+            y += (height - newHeight); // Adjust y when resizing from top
+            height = newHeight;
         }
     }
 
-    // Constrain to parent bounds (displayed canvas)
-    const canvasEl = canvasRef.current;
-    if (canvasEl) {
-        const { clientWidth: parentWidth, clientHeight: parentHeight } = canvasEl;
-        x = Math.max(0, Math.min(x, parentWidth - width));
-        y = Math.max(0, Math.min(y, parentHeight - height));
-        width = Math.min(width, parentWidth - x);
-        height = Math.min(height, parentHeight - y);
-    }
+    // Constrain to parent bounds (cropOverlayRef)
+    const { clientWidth: parentWidth, clientHeight: parentHeight } = overlay;
+    x = Math.max(0, Math.min(x, parentWidth - width));
+    y = Math.max(0, Math.min(y, parentHeight - height));
+    // Ensure width/height don't exceed bounds if x/y are at edges
+    width = Math.min(width, parentWidth - x);
+    height = Math.min(height, parentHeight - y);
     
     setCropRect({ x, y, width, height });
   };
@@ -453,11 +441,10 @@ const ImageEditor: React.FC = () => {
   const handleCropMouseUp = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isCroppingActive) return;
     e.preventDefault();
-    setCropInteraction({}); // Clear interaction state
+    setCropInteraction({}); 
   };
   
   const handleMouseLeaveCropArea = (e: React.MouseEvent<HTMLDivElement>) => {
-    // If mouse leaves while dragging/resizing, consider it a mouseup
     if (cropInteraction.isDragging || cropInteraction.isResizing) {
         handleCropMouseUp(e);
     }
@@ -509,33 +496,31 @@ const ImageEditor: React.FC = () => {
               &#8592; Choose another image or URL
           </button>
           
-          {/* Canvas and Crop Overlay Container */}
           <div 
             ref={cropOverlayRef}
             className="relative flex justify-center items-center bg-gray-700 p-1 sm:p-2 rounded-lg shadow-inner max-h-[50vh] overflow-hidden select-none"
             onMouseDown={handleCropMouseDown}
             onMouseMove={handleCropMouseMove}
             onMouseUp={handleCropMouseUp}
-            onMouseLeave={handleMouseLeaveCropArea} // Important to handle mouse leaving the area
+            onMouseLeave={handleMouseLeaveCropArea} 
             style={{ cursor: isCroppingActive ? getCursorForHandle(cropInteraction.resizeHandle || (cropInteraction.isDragging ? 'drag' : undefined)) : 'default' }}
           >
             <canvas 
                 ref={canvasRef} 
                 className="max-w-full max-h-[48vh] object-contain rounded"
                 style={{ 
-                    imageRendering: 'pixelated', // or 'crisp-edges' 
-                    filter: activeFilter !== 'none' && !isCroppingActive ? activeFilter : 'none' // Apply filter directly if not cropping
+                    imageRendering: 'pixelated', 
+                    filter: activeFilter !== 'none' && !isCroppingActive ? activeFilter : 'none' 
                 }}
             />
-            {isCroppingActive && cropRect && (
+            {isCroppingActive && cropRect && cropOverlayRef.current && (
               <>
-                {/* Dim overlay parts */}
+                {/* Dim overlay parts, now using cropRect relative to cropOverlayRef */}
                 <div className="absolute bg-black opacity-50 pointer-events-none" style={{ top: 0, left: 0, width: '100%', height: `${cropRect.y}px` }}></div>
                 <div className="absolute bg-black opacity-50 pointer-events-none" style={{ top: `${cropRect.y + cropRect.height}px`, left: 0, width: '100%', bottom: 0 }}></div>
                 <div className="absolute bg-black opacity-50 pointer-events-none" style={{ top: `${cropRect.y}px`, left: 0, width: `${cropRect.x}px`, height: `${cropRect.height}px` }}></div>
                 <div className="absolute bg-black opacity-50 pointer-events-none" style={{ top: `${cropRect.y}px`, left: `${cropRect.x + cropRect.width}px`, right: 0, height: `${cropRect.height}px` }}></div>
                 
-                {/* Crop selection box */}
                 <div
                   className="absolute border-2 border-dashed border-blue-400 pointer-events-none"
                   style={{
@@ -545,20 +530,19 @@ const ImageEditor: React.FC = () => {
                     height: `${cropRect.height}px`,
                   }}
                 >
-                  {/* Resize Handles */}
                   {['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(handle => (
                     <div
                       key={handle}
-                      className="absolute bg-blue-500 border border-blue-300 rounded-full"
+                      className="absolute bg-blue-500 border-2 border-blue-200 rounded-full shadow-lg"
                       style={{
                         width: `${HANDLE_SIZE}px`,
                         height: `${HANDLE_SIZE}px`,
                         cursor: getCursorForHandle(handle),
                         left: handle.includes('w') ? -HANDLE_SIZE / 2 : (handle.includes('e') ? cropRect.width - HANDLE_SIZE / 2 : cropRect.width / 2 - HANDLE_SIZE / 2),
                         top: handle.includes('n') ? -HANDLE_SIZE / 2 : (handle.includes('s') ? cropRect.height - HANDLE_SIZE / 2 : cropRect.height / 2 - HANDLE_SIZE / 2),
-                        pointerEvents: 'all' // Ensure handles are interactive over the crop box
+                        pointerEvents: 'all' 
                       }}
-                      data-handle={handle} // For mousedown target identification if needed
+                      data-handle={handle} 
                     />
                   ))}
                 </div>
@@ -566,9 +550,7 @@ const ImageEditor: React.FC = () => {
             )}
           </div>
           
-          {/* Controls */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 p-4 bg-gray-700 rounded-lg">
-            {/* Crop Controls */}
             <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <button
                     onClick={toggleCropMode}
@@ -677,3 +659,4 @@ const ImageEditor: React.FC = () => {
 };
 
 export default ImageEditor;
+    
