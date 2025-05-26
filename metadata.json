@@ -1,6 +1,6 @@
 {
   "name": "Video & GIF Toolkit",
-  "description": "A web application to convert videos to GIFs, trim videos, and download videos from direct URLs. Note: Advanced GIF editing is not included. Video processing is done in your browser and can be resource-intensive for large files or long durations.",
+  "description": "A web application to convert videos to GIFs and edit images. Note: Advanced GIF editing is not included. Video processing is done in your browser and can be resource-intensive for large files or long durations.",
   "requestFramePermissions": [],
   "prompt": ""
 }

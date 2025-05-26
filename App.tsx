@@ -1,36 +1,37 @@
 import React, { useState, useCallback } from 'react';
 import { Tool } from './types';
 import VideoToGifConverter from './features/VideoToGifConverter';
-import VideoTrimmer from './features/VideoTrimmer';
-import DirectUrlDownloader from './features/DirectUrlDownloader';
-import ImageEditor from './features/ImageEditor'; // New import
-import { VideoIcon, FilmIcon, DownloadIcon, CogIcon, ImageIcon } from './components/IconComponents'; // Added ImageIcon
+// import VideoTrimmer from './features/VideoTrimmer'; // Removed
+// import DirectUrlDownloader from './features/DirectUrlDownloader'; // Removed
+import ImageEditor from './features/ImageEditor';
+import { VideoIcon, CogIcon, ImageIcon } from './components/IconComponents'; // Removed FilmIcon, DownloadIcon
 
 const App: React.FC = () => {
   const [activeTool, setActiveTool] = useState<Tool>(Tool.Converter);
-  const [videoFileForConverter, setVideoFileForConverter] = useState<File | null>(null);
-  const [trimTimesForConverter, setTrimTimesForConverter] = useState<{startTime: number, endTime: number} | null>(null);
+  // const [videoFileForConverter, setVideoFileForConverter] = useState<File | null>(null); // Removed
+  // const [trimTimesForConverter, setTrimTimesForConverter] = useState<{startTime: number, endTime: number} | null>(null); // Removed
 
-  const handleSetVideoForConverter = useCallback((file: File, startTime?: number, endTime?: number) => {
-    setVideoFileForConverter(file);
-    if (startTime !== undefined && endTime !== undefined) {
-      setTrimTimesForConverter({ startTime, endTime });
-    } else {
-      setTrimTimesForConverter(null);
-    }
-    setActiveTool(Tool.Converter);
-  }, []);
+  // const handleSetVideoForConverter = useCallback((file: File, startTime?: number, endTime?: number) => { // Removed
+  //   setVideoFileForConverter(file);
+  //   if (startTime !== undefined && endTime !== undefined) {
+  //     setTrimTimesForConverter({ startTime, endTime });
+  //   } else {
+  //     setTrimTimesForConverter(null);
+  //   }
+  //   setActiveTool(Tool.Converter);
+  // }, []);
 
 
   const renderTool = () => {
     switch (activeTool) {
       case Tool.Converter:
-        return <VideoToGifConverter initialVideoFile={videoFileForConverter} initialTrimTimes={trimTimesForConverter} />;
-      case Tool.Trimmer:
-        return <VideoTrimmer onUseTrimForGif={handleSetVideoForConverter} />;
-      case Tool.Downloader:
-        return <DirectUrlDownloader />;
-      case Tool.ImageEditor: // New case
+        // return <VideoToGifConverter initialVideoFile={videoFileForConverter} initialTrimTimes={trimTimesForConverter} />; // Props removed
+        return <VideoToGifConverter />;
+      // case Tool.Trimmer: // Removed
+      //   return <VideoTrimmer onUseTrimForGif={handleSetVideoForConverter} />;
+      // case Tool.Downloader: // Removed
+      //   return <DirectUrlDownloader />;
+      case Tool.ImageEditor:
         return <ImageEditor />;
       default:
         return <VideoToGifConverter />;
@@ -39,9 +40,9 @@ const App: React.FC = () => {
 
   const navItems = [
     { name: Tool.Converter, icon: <CogIcon className="w-5 h-5 mr-2" /> },
-    { name: Tool.Trimmer, icon: <FilmIcon className="w-5 h-5 mr-2" /> },
-    { name: Tool.Downloader, icon: <DownloadIcon className="w-5 h-5 mr-2" /> },
-    { name: Tool.ImageEditor, icon: <ImageIcon className="w-5 h-5 mr-2" /> }, // New nav item
+    // { name: Tool.Trimmer, icon: <FilmIcon className="w-5 h-5 mr-2" /> }, // Removed
+    // { name: Tool.Downloader, icon: <DownloadIcon className="w-5 h-5 mr-2" /> }, // Removed
+    { name: Tool.ImageEditor, icon: <ImageIcon className="w-5 h-5 mr-2" /> },
   ];
 
   return (
@@ -54,7 +55,7 @@ const App: React.FC = () => {
           </h1>
         </div>
         <p className="text-gray-400 text-sm sm:text-base max-w-xl">
-          Convert videos to GIFs, trim segments, download from URLs, and edit images. All processing happens in your browser.
+          Convert videos to GIFs and edit images. All processing happens in your browser.
         </p>
       </header>
 

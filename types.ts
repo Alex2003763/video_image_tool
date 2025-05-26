@@ -7,9 +7,9 @@ declare global {
 
 export enum Tool {
   Converter = 'Video to GIF Converter',
-  Trimmer = 'Video Trimmer',
-  Downloader = 'Video Downloader',
-  ImageEditor = 'Image Editor', // New tool
+  // Trimmer = 'Video Trimmer', // Removed
+  // Downloader = 'Video Downloader', // Removed
+  ImageEditor = 'Image Editor',
 }
 
 export interface VideoTrimSelection {

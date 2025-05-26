@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface IconProps {
@@ -10,15 +11,12 @@ export const VideoIcon: React.FC<IconProps> = ({ className }) => (
   </svg>
 );
 
-export const FilmIcon: React.FC<IconProps> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6 20.25h12m-7.5-3.75v3.75m-3.75-3.75v3.75m0-3.75H18M19.5 4.5v.75c0 .621.504 1.125 1.125 1.125h2.25c.621 0 1.125-.504 1.125-1.125V4.5m0 3.75v.75c0 .621.504 1.125 1.125 1.125h2.25c.621 0 1.125-.504 1.125-1.125V8.25m0 3.75v.75c0 .621.504 1.125 1.125 1.125h2.25c.621 0 1.125-.504 1.125-1.125v-.75M4.5 19.5v-15A2.25 2.25 0 0 1 6.75 2.25H17.25A2.25 2.25 0 0 1 19.5 4.5v15m0-15c0-1.01-.816-1.836-1.818-1.836A1.827 1.827 0 0 0 15.818 2.25H8.182A1.827 1.827 0 0 0 6.364.414 1.818 1.818 0 0 0 4.5 2.25v15" />
-  </svg>
-);
+// FilmIcon removed
 
+// Fix: Re-added DownloadIcon to be used in DirectUrlDownloader.tsx
 export const DownloadIcon: React.FC<IconProps> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
   </svg>
 );
 
@@ -35,10 +33,10 @@ export const UploadIcon: React.FC<IconProps> = ({ className }) => (
   </svg>
 );
 
+// Fix: Re-added ScissorsIcon to be used in VideoTrimmer.tsx
 export const ScissorsIcon: React.FC<IconProps> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 3.75H6A2.25 2.25 0 0 0 3.75 6v1.5M16.5 3.75H18A2.25 2.25 0 0 1 20.25 6v1.5m0 9V18A2.25 2.25 0 0 1 18 20.25h-1.5m-9 0H6A2.25 2.25 0 0 1 3.75 18v-1.5M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 7.5l-3.75-3.75M16.5 7.5l3.75-3.75M7.5 16.5l-3.75 3.75M16.5 16.5l3.75 3.75" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7.848 8.25l1.536.887M7.848 8.25a3 3 0 11-5.196-3 3 3 0 015.196 3zm1.536.887a2.165 2.165 0 011.083 1.839c.005.351.054.695.14 1.024M9.384 9.137l2.077 1.199M7.848 15.75l1.536-.887m-1.536.887a3 3 0 10-5.196 3 3 3 0 005.196-3zm1.536-.887a2.165 2.165 0 001.083-1.838c.005-.351.054-.695.14-1.025m-1.223 2.865l2.077-1.199m0-3.374c.806-1.492 2.122-2.65 3.646-3.374M15 12c0 .828-.294 1.62-.815 2.25m-1.819-4.5a3.75 3.75 0 00-5.303 0M15 12c0-.828.294-1.62.815-2.25m1.819 4.5a3.75 3.75 0 015.303 0M17.185 9.75a3.75 3.75 0 010 4.5M15 12l-2.077-1.199" />
   </svg>
 );
 
